@@ -1,0 +1,1371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JH Family Calendar</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        body {
+            /* Using Segoe UI to mimic Outlook's native feel, fallback to system sans-serif */
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background-color: #f3f2f1; /* Outlook signature light gray */
+        }
+
+        /* FullCalendar Outlook-esque Customizations */
+        .fc {
+            background: white;
+            height: 100%;
+            width: 100%;
+            font-size: 0.875rem;
+        }
+        
+        .fc-theme-standard td, .fc-theme-standard th {
+            border-color: #e1dfdd;
+        }
+
+        .fc .fc-toolbar.fc-header-toolbar {
+            margin-bottom: 0;
+            padding: 1rem;
+            border-bottom: 1px solid #e1dfdd;
+            background: white;
+        }
+
+        .fc .fc-button-primary {
+            background-color: white !important;
+            color: #323130 !important;
+            border-color: #d1d1d1 !important;
+            border-radius: 4px !important;
+            text-transform: capitalize !important;
+            font-weight: 600 !important;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+
+        .fc .fc-button-primary:hover {
+            background-color: #f3f2f1 !important;
+        }
+
+        .fc .fc-button-primary:not(:disabled):active,
+        .fc .fc-button-primary:not(:disabled).fc-button-active {
+            background-color: #edebe9 !important;
+            border-color: #c8c6c4 !important;
+        }
+        
+        .fc-today-button {
+            margin-left: 10px !important;
+        }
+
+        .fc-theme-standard th {
+            padding: 0.5rem 0;
+            font-weight: 600;
+            color: #605e5c;
+            background-color: #faf9f8;
+        }
+
+        .fc-event {
+            border: none !important;
+            border-radius: 3px;
+            padding: 2px 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .fc-daygrid-event-dot {
+            display: none;
+        }
+        
+        .fc-timegrid-event {
+            padding: 4px;
+        }
+
+        /* Custom Scrollbar for sidebar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #c8c6c4;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #a19f9d;
+        }
+
+        /* Checkbox styling */
+        .checkbox-container input:checked + div {
+            background-color: currentColor;
+            border-color: currentColor;
+        }
+        .checkbox-container input:checked + div svg {
+            display: block;
+        }
+    </style>
+</head>
+<body class="text-gray-800 antialiased flex h-screen overflow-hidden">
+
+    <!-- Mobile Sidebar Backdrop -->
+    <div id="sidebar-backdrop" class="fixed inset-0 bg-black bg-opacity-50 z-20 hidden lg:hidden" onclick="toggleSidebar()"></div>
+
+    <!-- Sidebar -->
+    <aside id="sidebar" class="bg-white border-r border-gray-200 w-64 h-full flex flex-col transition-transform duration-300 transform -translate-x-full lg:translate-x-0 fixed lg:relative z-30 shadow-xl lg:shadow-none">
+        
+        <!-- App Header -->
+        <div class="h-14 flex items-center px-4 border-b border-gray-200 bg-[#7b1b35] text-white shrink-0">
+            <button class="lg:hidden mr-3 text-white hover:bg-white/20 p-1 rounded" onclick="toggleSidebar()">
+                <i class="fa-solid fa-bars"></i>
+            </button>
+            <i class="fa-regular fa-calendar-days text-lg mr-2"></i>
+            <h1 class="text-lg font-semibold tracking-wide">JH Family Calendar</h1>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <nav class="flex flex-col gap-1 p-3 shrink-0">
+            <button onclick="switchTab('home')" id="tab-home" class="w-full flex items-center gap-3 px-3 py-2 rounded text-left font-medium bg-[#f3f2f1] text-[#7b1b35] transition-colors">
+                <i class="fa-solid fa-house w-5 text-center"></i>
+                Home
+            </button>
+            <button onclick="switchTab('calendar')" id="tab-calendar" class="w-full flex items-center gap-3 px-3 py-2 rounded text-left font-medium text-gray-700 hover:bg-[#f3f2f1] transition-colors">
+                <i class="fa-regular fa-calendar w-5 text-center"></i>
+                Calendar View
+            </button>
+            <button onclick="switchTab('new-entry')" id="tab-new-entry" class="w-full flex items-center gap-3 px-3 py-2 rounded text-left font-medium text-gray-700 hover:bg-[#f3f2f1] transition-colors">
+                <i class="fa-solid fa-plus w-5 text-center"></i>
+                New Entry
+            </button>
+        </nav>
+
+        <!-- Calendars Filter Section -->
+        <div class="flex-1 overflow-y-auto p-4 border-t border-gray-100">
+            <h2 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 px-1">My Calendars</h2>
+            <div id="member-filters" class="flex flex-col gap-2">
+                <!-- Checkboxes generated by JS -->
+            </div>
+            <button onclick="openAddMemberModal()" class="mt-4 text-sm font-semibold text-[#0f766e] hover:text-[#0b5c56] flex items-center gap-2 transition-colors px-1">
+                <i class="fa-solid fa-plus"></i> Add New Member
+            </button>
+        </div>
+
+        <!-- Status Footer -->
+        <div class="p-3 border-t border-gray-200 bg-gray-50 text-xs text-gray-500 flex items-center gap-2 shrink-0">
+            <div id="connection-status" class="flex items-center gap-2">
+                <i class="fa-solid fa-circle-notch fa-spin text-[#0f766e]"></i> Connecting...
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 flex flex-col h-full min-w-0 bg-white">
+        
+        <!-- Mobile Header (Visible only on small screens) -->
+        <header class="lg:hidden h-14 bg-[#7b1b35] text-white flex items-center px-4 shrink-0 shadow-md z-10">
+            <button onclick="toggleSidebar()" class="mr-3 p-1 hover:bg-white/20 rounded">
+                <i class="fa-solid fa-bars text-lg"></i>
+            </button>
+            <h1 class="text-lg font-semibold" id="mobile-header-title">Home</h1>
+        </header>
+
+        <!-- View: Home -->
+        <div id="view-home" class="flex-1 overflow-y-auto bg-[#f3f2f1] p-4 lg:p-8">
+            <div class="max-w-4xl mx-auto">
+                <div class="bg-gradient-to-r from-[#7b1b35] to-[#9a2242] rounded-xl shadow-lg p-8 text-white mb-8">
+                    <h2 class="text-3xl lg:text-4xl font-bold mb-4 flex items-center gap-3">
+                        <i class="fa-solid fa-people-roof"></i> Welcome to the JH Family Calendar
+                    </h2>
+                    <p class="text-lg opacity-95 max-w-2xl leading-relaxed">
+                        Our central hub to keep everyone connected, organized, and informed. 
+                        Whether it's doctor appointments, family trips, or celebrating milestones, 
+                        check here to see who is busy and when we can all spend time together. 
+                        No more double-booking or missing important dates!
+                    </p>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col">
+                        <h3 class="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2 border-b pb-2">
+                            <i class="fa-solid fa-cake-candles text-[#0f766e]"></i> Upcoming Birthdays
+                        </h3>
+                        <div id="upcoming-birthdays" class="flex flex-col gap-3 flex-1">
+                            <p class="text-sm text-gray-500 italic">No upcoming birthdays in the next 30 days.</p>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col">
+                        <h3 class="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2 border-b pb-2">
+                            <i class="fa-solid fa-bell text-[#eab308]"></i> Reminders & Quick Actions
+                        </h3>
+                        <ul class="text-sm text-gray-600 flex flex-col gap-3 mb-6 flex-1">
+                            <li class="flex items-start gap-2">
+                                <i class="fa-regular fa-circle-check text-green-600 mt-0.5"></i> 
+                                <span>Always check the <strong>Calendar View</strong> before scheduling large family dinners or trips.</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <i class="fa-regular fa-circle-check text-green-600 mt-0.5"></i> 
+                                <span>Add important medical appointments early so everyone knows who is available to help.</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <i class="fa-regular fa-circle-check text-green-600 mt-0.5"></i> 
+                                <span>Add birth dates to Member Profiles so the system automatically adds them!</span>
+                            </li>
+                        </ul>
+                        <button onclick="switchTab('new-entry')" class="w-full px-4 py-3 bg-[#7b1b35] text-white rounded hover:bg-[#5e1529] font-semibold shadow-sm transition-colors flex justify-center items-center gap-2">
+                            <i class="fa-solid fa-plus"></i> Create New Event
+                        </button>
+                    </div>
+
+                    <!-- NEW: Family Noticeboard -->
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col md:col-span-2">
+                        <h3 class="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2 border-b pb-2">
+                            <i class="fa-solid fa-clipboard-list text-[#0f766e]"></i> Family Noticeboard & To-Do List
+                        </h3>
+                        <div class="flex gap-2 mb-4">
+                            <input type="text" id="new-note-input" placeholder="Type a new note, grocery item, or chore..." class="flex-1 px-3 py-2 border border-gray-300 rounded focus:border-[#7b1b35] focus:outline-none">
+                            <button onclick="addNote()" class="px-4 py-2 bg-[#0f766e] text-white rounded hover:bg-[#0b5c56] font-semibold shadow-sm transition-colors">Add</button>
+                        </div>
+                        <ul id="noticeboard-list" class="flex flex-col gap-2 flex-1 max-h-48 overflow-y-auto pr-1">
+                            <li class="text-sm text-gray-500 italic">Loading notes...</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- View: Calendar -->
+        <div id="view-calendar" class="flex-1 overflow-hidden relative hidden">
+            <div id="calendar" class="absolute inset-0"></div>
+        </div>
+
+        <!-- View: New Entry Form -->
+        <div id="view-new-entry" class="flex-1 overflow-y-auto hidden bg-[#f3f2f1] p-4 lg:p-8">
+            <div class="max-w-3xl mx-auto bg-white rounded shadow-sm border border-gray-200 overflow-hidden">
+                <div class="border-b border-gray-200 p-6 flex justify-between items-center bg-gray-50">
+                    <h2 class="text-2xl font-light text-gray-800 flex items-center gap-2">
+                        <i class="fa-regular fa-calendar-plus text-[#0f766e]"></i> New Event
+                    </h2>
+                </div>
+                
+                <form id="add-event-form" class="p-6 md:p-8 flex flex-col gap-6">
+                    <div>
+                        <input type="text" id="event-title" required placeholder="Add a title" class="w-full px-0 py-2 border-0 border-b-2 border-gray-200 text-xl focus:ring-0 focus:border-[#7b1b35] placeholder-gray-400 transition-colors bg-transparent">
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="flex flex-col gap-1">
+                            <label class="text-sm font-semibold text-gray-600 flex items-center gap-2">
+                                <i class="fa-regular fa-clock w-4 text-center"></i> Start
+                            </label>
+                            <div class="flex gap-2">
+                                <input type="date" id="event-start-date" required class="flex-1 px-3 py-2 border border-gray-300 rounded hover:border-gray-400 focus:outline-none focus:border-[#7b1b35]">
+                                <input type="time" id="event-start-time" required class="w-32 px-3 py-2 border border-gray-300 rounded hover:border-gray-400 focus:outline-none focus:border-[#7b1b35]">
+                            </div>
+                        </div>
+
+                        <div class="flex flex-col gap-1">
+                            <label class="text-sm font-semibold text-gray-600 flex items-center gap-2">
+                                <i class="fa-solid fa-flag-checkered w-4 text-center"></i> End
+                            </label>
+                            <div class="flex gap-2">
+                                <input type="date" id="event-end-date" required class="flex-1 px-3 py-2 border border-gray-300 rounded hover:border-gray-400 focus:outline-none focus:border-[#7b1b35]">
+                                <input type="time" id="event-end-time" required class="w-32 px-3 py-2 border border-gray-300 rounded hover:border-gray-400 focus:outline-none focus:border-[#7b1b35]">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="border-t border-gray-100 pt-6">
+                        <label class="text-sm font-semibold text-gray-600 mb-3 flex items-center gap-2">
+                            <i class="fa-regular fa-user w-4 text-center"></i> Assign To
+                        </label>
+                        <div class="relative">
+                            <select id="event-member" required class="w-full md:w-1/2 px-3 py-2 border border-gray-300 rounded hover:border-gray-400 focus:outline-none focus:border-[#7b1b35] appearance-none bg-white">
+                                <option value="" disabled selected>Select a family member...</option>
+                            </select>
+                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500 md:right-1/2">
+                                <i class="fa-solid fa-chevron-down text-xs"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="form-error" class="text-red-600 text-sm hidden p-3 bg-red-50 rounded border border-red-100 flex items-center gap-2">
+                        <i class="fa-solid fa-circle-exclamation"></i> <span>Error message</span>
+                    </div>
+
+                    <div class="flex justify-end gap-3 mt-4 pt-4 border-t border-gray-100">
+                        <button type="button" onclick="switchTab('calendar')" class="px-5 py-2 text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 font-semibold transition-colors">Discard</button>
+                        <button type="submit" class="px-5 py-2 bg-[#7b1b35] text-white rounded hover:bg-[#5e1529] font-semibold shadow-sm transition-colors flex items-center gap-2">
+                            <i class="fa-regular fa-floppy-disk"></i> Save Event
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Event Details Modal (Overlay) -->
+    <div id="event-details-modal" class="fixed inset-0 bg-black bg-opacity-40 z-50 hidden flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-lg shadow-2xl w-full max-w-sm overflow-hidden flex flex-col relative transform transition-all">
+            <div id="details-header-color" class="h-2 w-full absolute top-0 left-0 z-0"></div>
+            
+            <div class="px-5 pt-6 pb-2 flex justify-between items-start">
+                <div id="details-badge" class="px-2 py-1 rounded text-xs font-bold uppercase tracking-wide border inline-block"></div>
+                <button onclick="closeEventDetailsModal()" class="text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded w-8 h-8 flex items-center justify-center transition-colors">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            
+            <div class="px-5 pb-6">
+                <h2 id="details-title" class="text-xl font-semibold text-gray-900 mb-4 mt-2 leading-tight"></h2>
+                
+                <div class="flex flex-col gap-3 text-sm text-gray-600">
+                    <div class="flex items-start gap-3">
+                        <i class="fa-regular fa-clock w-4 mt-1 text-gray-400 text-center"></i>
+                        <div>
+                            <div id="details-date" class="font-medium text-gray-800"></div>
+                            <div id="details-time" class="text-gray-500 mt-0.5"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="px-5 py-3 border-t border-gray-100 bg-gray-50 flex justify-between items-center">
+                <button onclick="shareEventToWhatsApp()" type="button" class="px-3 py-1.5 text-sm text-[#25D366] hover:bg-green-50 rounded transition-colors flex items-center gap-2 font-medium">
+                    <i class="fa-brands fa-whatsapp text-lg"></i> Share
+                </button>
+                <button onclick="deleteCurrentEvent()" type="button" class="px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 rounded transition-colors flex items-center gap-2 font-medium">
+                    <i class="fa-regular fa-trash-can"></i> Delete Event
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="fixed bottom-4 right-4 bg-[#323130] text-white px-4 py-3 rounded shadow-lg transform transition-all duration-300 translate-y-20 opacity-0 z-[60] flex items-center gap-3 min-w-[250px]">
+        <i id="toast-icon" class="fa-solid fa-info-circle"></i>
+        <span id="toast-message" class="text-sm font-medium">Message</span>
+    </div>
+
+    <!-- Add Member Modal -->
+    <div id="add-member-modal" class="fixed inset-0 bg-black bg-opacity-40 z-50 hidden flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-sm overflow-hidden flex flex-col relative transform transition-all">
+            <div class="px-5 pt-5 pb-3 flex justify-between items-center border-b border-gray-100 bg-gray-50">
+                <h3 class="font-semibold text-gray-800">Add Family Member</h3>
+                <button onclick="closeAddMemberModal()" class="text-gray-400 hover:text-gray-700 hover:bg-gray-200 rounded w-8 h-8 flex items-center justify-center transition-colors">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <form id="add-member-form" class="p-5 flex flex-col gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                    <input type="text" id="new-member-name" required placeholder="e.g. Uncle John" class="w-full px-3 py-2 border border-gray-300 rounded focus:border-[#7b1b35] focus:outline-none focus:ring-1 focus:ring-[#7b1b35]">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Birthday (Optional)</label>
+                    <input type="date" id="new-member-birthday" class="w-full px-3 py-2 border border-gray-300 rounded focus:border-[#7b1b35] focus:outline-none focus:ring-1 focus:ring-[#7b1b35]">
+                    <p class="text-xs text-gray-500 mt-1">If set, birthdays will automatically appear on the calendar.</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Color</label>
+                    <div class="flex gap-2 items-center">
+                        <input type="color" id="new-member-color" value="#0f766e" class="w-10 h-10 p-0.5 border border-gray-300 rounded cursor-pointer">
+                        <span class="text-xs text-gray-500">Pick a color for their events</span>
+                    </div>
+                </div>
+                <div class="flex justify-end gap-3 mt-2">
+                    <button type="button" onclick="closeAddMemberModal()" class="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded hover:bg-gray-50 font-medium">Cancel</button>
+                    <button type="submit" class="px-4 py-2 text-sm bg-[#7b1b35] text-white rounded hover:bg-[#5e1529] font-medium shadow-sm flex items-center gap-2">
+                        <i class="fa-solid fa-plus"></i> Add
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Member Modal -->
+    <div id="edit-member-modal" class="fixed inset-0 bg-black bg-opacity-40 z-50 hidden flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-sm overflow-hidden flex flex-col relative transform transition-all">
+            <div class="px-5 pt-5 pb-3 flex justify-between items-center border-b border-gray-100 bg-gray-50">
+                <h3 class="font-semibold text-gray-800">Edit Family Member Profile</h3>
+                <button onclick="closeEditMemberModal()" class="text-gray-400 hover:text-gray-700 hover:bg-gray-200 rounded w-8 h-8 flex items-center justify-center transition-colors">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <form id="edit-member-form" class="p-5 flex flex-col gap-4">
+                <input type="hidden" id="edit-member-original-id">
+                <input type="hidden" id="edit-member-doc-id">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                    <input type="text" id="edit-member-name" required class="w-full px-3 py-2 border border-gray-300 rounded focus:border-[#7b1b35] focus:outline-none focus:ring-1 focus:ring-[#7b1b35]">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Birthday (Optional)</label>
+                    <input type="date" id="edit-member-birthday" class="w-full px-3 py-2 border border-gray-300 rounded focus:border-[#7b1b35] focus:outline-none focus:ring-1 focus:ring-[#7b1b35]">
+                    <p class="text-xs text-gray-500 mt-1">If set, birthdays will automatically appear on the calendar.</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Color</label>
+                    <div class="flex gap-2 items-center">
+                        <input type="color" id="edit-member-color" class="w-10 h-10 p-0.5 border border-gray-300 rounded cursor-pointer">
+                        <span class="text-xs text-gray-500">Pick a new color</span>
+                    </div>
+                </div>
+                <div class="flex justify-between mt-2 pt-2 border-t border-gray-100">
+                    <button type="button" onclick="deleteMember()" class="px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded font-medium transition-colors flex items-center gap-1">
+                        <i class="fa-regular fa-trash-can"></i> Remove
+                    </button>
+                    <div class="flex gap-2">
+                        <button type="button" onclick="closeEditMemberModal()" class="px-3 py-2 text-sm text-gray-700 border border-gray-300 rounded hover:bg-gray-50 font-medium">Cancel</button>
+                        <button type="submit" class="px-3 py-2 text-sm bg-[#7b1b35] text-white rounded hover:bg-[#5e1529] font-medium shadow-sm flex items-center gap-2">
+                            <i class="fa-solid fa-check"></i> Save
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Firebase & Application Logic -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, collection, onSnapshot, addDoc, deleteDoc, updateDoc, getDocs, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Environment setup
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'family-calendar-app';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+            apiKey: "dummy", authDomain: "dummy", projectId: "dummy", storageBucket: "dummy", messagingSenderId: "dummy", appId: "dummy"
+        };
+        const customAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        // Init Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        const eventsPath = `artifacts/${appId}/public/data/events`;
+        const membersPath = `artifacts/${appId}/public/data/members`;
+        const notesPath = `artifacts/${appId}/public/data/notes`;
+
+        // Configurations per requirement
+        const defaultMembers = [
+            { id: 'Mama',   color: '#ec4899', birthday: null }, // Pink
+            { id: 'Bapa',   color: '#3b82f6', birthday: null }, // Blue
+            { id: 'Amal',   color: '#a855f7', birthday: '1990-11-03' }, // Purple (Added birthday based on your prompt)
+            { id: 'Awie',   color: '#6366f1', birthday: null }, // Indigo
+            { id: 'Saiful', color: '#06b6d4', birthday: null }, // Cyan
+            { id: 'Hannah', color: '#14b8a6', birthday: null }, // Teal
+            { id: 'Saad',   color: '#f97316', birthday: '2020-11-21' }, // Orange (Added birthday based on your prompt)
+            { id: 'Eisa',   color: '#22c55e', birthday: null }, // Green
+            { id: 'Sufyan', color: '#eab308', birthday: null }, // Yellow
+            { id: 'Family', color: '#64748b', birthday: null }  // Slate
+        ];
+
+        let members = [...defaultMembers];
+
+        const preloadedData = [
+            { title: "Mama Function", member: "Mama", startDate: "2026-11-01", endDate: "2026-11-01", startTime: "09:00", endTime: "12:00" },
+            { title: "Arrival of new maid + Sujarmi", member: "Family", startDate: "2026-11-02", endDate: "2026-11-02", startTime: "09:00", endTime: "10:00" },
+            { title: "Amal's birthday", member: "Amal", startDate: "2026-11-03", endDate: "2026-11-03", startTime: "00:00", endTime: "23:59" },
+            { title: "Bapa appt", member: "Bapa", startDate: "2026-11-10", endDate: "2026-11-10", startTime: "10:00", endTime: "12:00" },
+            { title: "Saiful Hannah / Mama Miri", member: "Family", startDate: "2026-11-14", endDate: "2026-11-14", startTime: "08:00", endTime: "20:00" },
+            { title: "Saiful Hannah Miri - KL", member: "Saiful", startDate: "2026-11-15", endDate: "2026-11-15", startTime: "08:00", endTime: "20:00" },
+            { title: "Amal Surgery (Awie bemalam, tolong jaga Sufyan)", member: "Amal", startDate: "2026-11-16", endDate: "2026-11-16", startTime: "08:00", endTime: "23:59" },
+            { title: "Bapa appt", member: "Bapa", startDate: "2026-11-17", endDate: "2026-11-17", startTime: "10:00", endTime: "12:00" },
+            { title: "Amal discharge", member: "Amal", startDate: "2026-11-17", endDate: "2026-11-17", startTime: "12:00", endTime: "14:00" },
+            { title: "Saiful Hannah KL-BWN", member: "Saiful", startDate: "2026-11-19", endDate: "2026-11-19", startTime: "08:00", endTime: "20:00" },
+            { title: "Sa'ad Birthday", member: "Saad", startDate: "2026-11-21", endDate: "2026-11-21", startTime: "00:00", endTime: "23:59" },
+            { title: "Mama & Bapa KK (Attend Wedding)", member: "Family", startDate: "2026-12-12", endDate: "2026-12-15", startTime: "08:00", endTime: "20:00" },
+            { title: "Saad Eisa sunat", member: "Family", startDate: "2026-12-19", endDate: "2026-12-19", startTime: "08:00", endTime: "12:00" }
+        ];
+
+        // Global State
+        let calendar;
+        let allRawEvents = []; // Master list from Firebase + preloaded
+        let activeFilters = new Set(members.map(m => m.id)); // All checked initially
+        let activeEventId = null;
+        let activeEventDataForShare = null; // Store event details for WhatsApp sharing
+
+        // Initialize
+        async function init() {
+            // Wait for FullCalendar to load if it is delayed
+            let retries = 0;
+            while (typeof FullCalendar === 'undefined' && retries < 20) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+                retries++;
+            }
+
+            if (typeof FullCalendar === 'undefined') {
+                document.getElementById('connection-status').innerHTML = '<i class="fa-solid fa-triangle-exclamation text-red-600"></i> Calendar Error';
+                showToast("Failed to load Calendar library.", "error");
+                return;
+            }
+
+            renderFilters();
+            setupCalendar();
+            
+            // Sync start date to end date automatically for convenience in New Entry
+            document.getElementById('event-start-date').addEventListener('change', function(e) {
+                const endDateInput = document.getElementById('event-end-date');
+                if (!endDateInput.value || endDateInput.value < e.target.value) {
+                    endDateInput.value = e.target.value;
+                }
+            });
+
+            try {
+                if (customAuthToken) {
+                    await signInWithCustomToken(auth, customAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+                listenToMembers();
+                listenToEvents();
+                listenToNotes();
+                document.getElementById('connection-status').innerHTML = '<i class="fa-solid fa-cloud text-green-600"></i> Connected';
+            } catch (error) {
+                console.error("Firebase Init Error:", error);
+                document.getElementById('connection-status').innerHTML = '<i class="fa-solid fa-cloud-slash text-red-600"></i> Offline';
+                showToast("Failed to connect.", "error");
+            }
+        }
+
+        function renderFilters() {
+            const container = document.getElementById('member-filters');
+            container.innerHTML = members.map(m => `
+                <div class="flex justify-between items-center group hover:bg-gray-100 rounded transition-colors pr-1">
+                    <label class="checkbox-container flex-1 flex items-center gap-3 p-2 cursor-pointer">
+                        <div class="relative flex items-center">
+                            <input type="checkbox" value="${m.id}" ${activeFilters.has(m.id) ? 'checked' : ''} class="peer sr-only" onchange="toggleFilter(this)">
+                            <div class="w-5 h-5 rounded border-2 flex items-center justify-center transition-colors bg-white peer-checked:border-[${m.color}]" style="color: ${m.color}; border-color: currentColor;">
+                                <svg class="w-3 h-3 text-white hidden pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
+                                </svg>
+                            </div>
+                        </div>
+                        <span class="text-sm font-medium text-gray-700">${m.id}</span>
+                    </label>
+                    <button onclick="openEditMemberModal('${m.id}')" class="opacity-0 group-hover:opacity-100 p-2 text-gray-400 hover:text-[#7b1b35] transition-opacity" title="Edit ${m.id}">
+                        <i class="fa-solid fa-pen text-xs"></i>
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        window.toggleFilter = (checkbox) => {
+            if (checkbox.checked) {
+                activeFilters.add(checkbox.value);
+            } else {
+                activeFilters.delete(checkbox.value);
+            }
+            updateCalendarEvents();
+        };
+
+        function renderMemberSelect() {
+            const select = document.getElementById('event-member');
+            const currentValue = select.value;
+            select.innerHTML = '<option value="" disabled selected>Select a family member...</option>' + 
+                members.map(m => `<option value="${m.id}">${m.id}</option>`).join('');
+            
+            if (currentValue && members.some(m => m.id === currentValue)) {
+                select.value = currentValue;
+            }
+        }
+        
+        function listenToMembers() {
+            if (!auth.currentUser) {
+                renderMemberSelect();
+                return;
+            }
+            const membersCol = collection(db, membersPath);
+            onSnapshot(membersCol, (snapshot) => {
+                const customMembers = [];
+                const overriddenIds = new Set();
+                
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    if (data.name && data.color && !data.deleted) {
+                        customMembers.push({ 
+                            id: data.name, 
+                            color: data.color, 
+                            docId: doc.id, 
+                            originalId: data.originalId,
+                            birthday: data.birthday || null 
+                        });
+                    }
+                    if (data.originalId || data.deleted) {
+                        overriddenIds.add(data.originalId || data.name);
+                    }
+                });
+
+                // Merge defaults and custom members safely, excluding deleted/overridden ones
+                const allMembersMap = new Map();
+                defaultMembers.forEach(m => {
+                    if (!overriddenIds.has(m.id)) {
+                        allMembersMap.set(m.id, m);
+                    }
+                });
+                customMembers.forEach(m => allMembersMap.set(m.id, m));
+                
+                members = Array.from(allMembersMap.values());
+
+                // Auto-enable new members in filters if they haven't been added yet
+                members.forEach(m => {
+                    if(!activeFilters.has(m.id)) {
+                        activeFilters.add(m.id);
+                    }
+                });
+
+                renderFilters();
+                renderMemberSelect();
+                updateHomeDashboard();
+                updateCalendarEvents(); // refresh to show newly mapped colors and birthdays
+            });
+        }
+
+        function setupCalendar() {
+            const calendarEl = document.getElementById('calendar');
+            const isMobile = window.innerWidth < 1024;
+            
+            calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: isMobile ? 'listWeek' : 'dayGridMonth',
+                initialDate: '2026-11-01', // Start in Nov 2026 to see pre-loaded events
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: isMobile ? 'dayGridMonth,listWeek' : 'dayGridMonth,timeGridWeek,timeGridDay'
+                },
+                height: '100%',
+                navLinks: true,
+                editable: true,
+                selectable: true,
+                selectMirror: true,
+                dayMaxEvents: true,
+                
+                select: function(arg) {
+                    // Navigate to New Entry tab and prefill
+                    switchTab('new-entry');
+                    
+                    const startDate = arg.startStr.split('T')[0];
+                    let endDate = startDate;
+                    
+                    if (arg.endStr) {
+                         // FullCalendar end date is exclusive, subtract 1 day for intuitive UI if it's an all-day selection spanning days
+                        const end = new Date(arg.endStr);
+                        if (arg.allDay && end.getTime() - arg.start.getTime() > 86400000) {
+                            end.setDate(end.getDate() - 1);
+                        }
+                        endDate = end.toISOString().split('T')[0];
+                    }
+
+                    document.getElementById('event-start-date').value = startDate;
+                    document.getElementById('event-end-date').value = endDate;
+                    document.getElementById('event-start-time').value = '09:00';
+                    document.getElementById('event-end-time').value = '10:00';
+                    calendar.unselect();
+                },
+                
+                eventDrop: async function(arg) {
+                    const eventId = arg.event.id;
+                    
+                    // Prevent moving preloaded items or automated birthdays
+                    if (!eventId || eventId.startsWith('preloaded-') || eventId.startsWith('auto-bday-')) {
+                        arg.revert();
+                        showToast("Cannot move preloaded or automated events.", "error");
+                        return;
+                    }
+                    
+                    if (!auth.currentUser) {
+                        arg.revert();
+                        showToast("Not connected. Cannot save changes.", "error");
+                        return;
+                    }
+
+                    try {
+                        const startDate = arg.event.start.toLocaleDateString('en-CA'); // Gets YYYY-MM-DD in local time
+                        const startTime = arg.event.start.toTimeString().substring(0, 5);
+                        
+                        let endDate = startDate;
+                        let endTime = startTime;
+                        
+                        if (arg.event.end) {
+                            endDate = arg.event.end.toLocaleDateString('en-CA');
+                            endTime = arg.event.end.toTimeString().substring(0, 5);
+                        }
+
+                        await updateDoc(doc(db, eventsPath, eventId), {
+                            startDate: startDate,
+                            startTime: startTime,
+                            endDate: endDate,
+                            endTime: endTime
+                        });
+                        showToast("Event rescheduled successfully.", "success");
+                    } catch (error) {
+                        console.error("Error moving event:", error);
+                        arg.revert();
+                        showToast("Failed to move event.", "error");
+                    }
+                },
+
+                eventClick: function(arg) {
+                    showEventDetails(arg.event);
+                }
+            });
+            
+            calendar.render();
+            
+            // Responsive toolbar adjusting
+            window.addEventListener('resize', () => {
+                const mobileNow = window.innerWidth < 1024;
+                if (calendar) {
+                    calendar.setOption('headerToolbar', {
+                        left: 'prev,next today',
+                        center: 'title',
+                        right: mobileNow ? 'dayGridMonth,listWeek' : 'dayGridMonth,timeGridWeek,timeGridDay'
+                    });
+                }
+            });
+        }
+
+        function listenToEvents() {
+            if (!auth.currentUser) {
+                // If disconnected, at least show preloaded events
+                populateEventsFromData([]);
+                return;
+            }
+            
+            const eventsCol = collection(db, eventsPath);
+            
+            onSnapshot(eventsCol, (snapshot) => {
+                const firebaseDocs = [];
+                snapshot.forEach(doc => {
+                    firebaseDocs.push({ id: doc.id, ...doc.data() });
+                });
+                populateEventsFromData(firebaseDocs);
+            }, (error) => {
+                console.error("Firestore error:", error);
+                showToast("Sync error.", "error");
+                populateEventsFromData([]);
+            });
+        }
+
+        function populateEventsFromData(firebaseData) {
+            allRawEvents = [];
+            
+            // 0. Auto-generate Birthday Events from Member Profiles for Current & Next Year
+            const currentYear = new Date().getFullYear();
+            const yearsToGenerate = [currentYear - 1, currentYear, currentYear + 1, currentYear + 2];
+            
+            members.forEach(m => {
+                if (m.birthday) {
+                    const birthMonthDay = m.birthday.substring(5); // gets MM-DD
+                    
+                    yearsToGenerate.forEach(year => {
+                        const eventDate = `${year}-${birthMonthDay}`;
+                        allRawEvents.push({
+                            id: `auto-bday-${m.id}-${year}`,
+                            title: `🎂 ${m.id}'s Birthday`,
+                            start: `${eventDate}T00:00:00`,
+                            end: `${eventDate}T23:59:59`,
+                            allDay: true,
+                            backgroundColor: m.color,
+                            borderColor: m.color,
+                            textColor: '#ffffff',
+                            extendedProps: {
+                                member: m.id,
+                                startDate: eventDate,
+                                endDate: eventDate,
+                                startTime: '00:00',
+                                endTime: '23:59',
+                                color: m.color,
+                                isPreloaded: true // Prevents deletion of auto-generated events
+                            }
+                        });
+                    });
+                }
+            });
+
+            // 1. Process Preloaded Data
+            preloadedData.forEach((data, index) => {
+                const memberInfo = members.find(m => m.id === data.member) || { color: '#6b7280' };
+                allRawEvents.push({
+                    id: 'preloaded-' + index,
+                    title: data.title,
+                    start: `${data.startDate}T${data.startTime}:00`,
+                    end: `${data.endDate}T${data.endTime}:00`,
+                    backgroundColor: memberInfo.color,
+                    borderColor: memberInfo.color,
+                    textColor: '#ffffff',
+                    extendedProps: {
+                        member: data.member,
+                        startDate: data.startDate,
+                        endDate: data.endDate,
+                        startTime: data.startTime,
+                        endTime: data.endTime,
+                        color: memberInfo.color,
+                        isPreloaded: true
+                    }
+                });
+            });
+
+            // 2. Process Firebase Data
+            firebaseData.forEach((data) => {
+                // Safety check: Skip missing or corrupted data to prevent the calendar from crashing
+                if (!data.startDate || !data.startTime || !data.endDate || !data.endTime) return; 
+                
+                const memberInfo = members.find(m => m.id === data.member) || { color: '#6b7280' };
+                allRawEvents.push({
+                    id: data.id,
+                    title: data.title || "Untitled Event",
+                    start: `${data.startDate}T${data.startTime}:00`,
+                    end: `${data.endDate}T${data.endTime}:00`,
+                    backgroundColor: memberInfo.color,
+                    borderColor: memberInfo.color,
+                    textColor: '#ffffff',
+                    extendedProps: {
+                        member: data.member || "Family",
+                        startDate: data.startDate,
+                        endDate: data.endDate,
+                        startTime: data.startTime,
+                        endTime: data.endTime,
+                        color: memberInfo.color
+                    }
+                });
+            });
+            
+            updateCalendarEvents();
+            updateHomeDashboard();
+        }
+
+        function updateCalendarEvents() {
+            if (!calendar) return;
+            // Filter locally based on checked sidebar items
+            const filteredEvents = allRawEvents.filter(ev => activeFilters.has(ev.extendedProps.member));
+            calendar.removeAllEventSources();
+            calendar.addEventSource(filteredEvents);
+        }
+
+        // Navigation UI logic
+        window.switchTab = (tabId) => {
+            const homeView = document.getElementById('view-home');
+            const calView = document.getElementById('view-calendar');
+            const newEntryView = document.getElementById('view-new-entry');
+            
+            const tabHome = document.getElementById('tab-home');
+            const tabCal = document.getElementById('tab-calendar');
+            const tabNew = document.getElementById('tab-new-entry');
+            const mobileHeaderTitle = document.getElementById('mobile-header-title');
+            
+            // Reset all tabs to inactive
+            [tabHome, tabCal, tabNew].forEach(tab => {
+                tab.className = 'w-full flex items-center gap-3 px-3 py-2 rounded text-left font-medium text-gray-700 hover:bg-[#f3f2f1] transition-colors';
+            });
+            
+            if (tabId === 'home') {
+                homeView.classList.remove('hidden');
+                calView.classList.add('hidden');
+                newEntryView.classList.add('hidden');
+                
+                tabHome.className = 'w-full flex items-center gap-3 px-3 py-2 rounded text-left font-medium bg-[#f3f2f1] text-[#7b1b35] transition-colors';
+                mobileHeaderTitle.textContent = "Home";
+            } else if (tabId === 'calendar') {
+                homeView.classList.add('hidden');
+                calView.classList.remove('hidden');
+                newEntryView.classList.add('hidden');
+                
+                tabCal.className = 'w-full flex items-center gap-3 px-3 py-2 rounded text-left font-medium bg-[#f3f2f1] text-[#7b1b35] transition-colors';
+                mobileHeaderTitle.textContent = "Calendar View";
+                
+                setTimeout(() => { if (calendar) calendar.render(); }, 50);
+            } else {
+                homeView.classList.add('hidden');
+                calView.classList.add('hidden');
+                newEntryView.classList.remove('hidden');
+                
+                tabNew.className = 'w-full flex items-center gap-3 px-3 py-2 rounded text-left font-medium bg-[#f3f2f1] text-[#7b1b35] transition-colors';
+                mobileHeaderTitle.textContent = "New Entry";
+            }
+            
+            if (window.innerWidth < 1024) {
+                toggleSidebar();
+            }
+        };
+
+        window.toggleSidebar = () => {
+            const sidebar = document.getElementById('sidebar');
+            const backdrop = document.getElementById('sidebar-backdrop');
+            
+            const isClosed = sidebar.classList.contains('-translate-x-full');
+            
+            if (isClosed) {
+                sidebar.classList.remove('-translate-x-full');
+                backdrop.classList.remove('hidden');
+            } else {
+                sidebar.classList.add('-translate-x-full');
+                backdrop.classList.add('hidden');
+            }
+        };
+
+        // Add Member Modal Logic
+        window.openAddMemberModal = () => {
+            document.getElementById('add-member-modal').classList.remove('hidden');
+        };
+        
+        window.closeAddMemberModal = () => {
+            document.getElementById('add-member-modal').classList.add('hidden');
+            document.getElementById('add-member-form').reset();
+        };
+        
+        document.getElementById('add-member-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('new-member-name').value.trim();
+            const color = document.getElementById('new-member-color').value;
+            const birthday = document.getElementById('new-member-birthday').value;
+            
+            if (!name || !auth.currentUser) return;
+            
+            try {
+                const submitBtn = e.target.querySelector('button[type="submit"]');
+                const originalText = submitBtn.innerHTML;
+                submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Adding...';
+                submitBtn.disabled = true;
+
+                const membersCol = collection(db, membersPath);
+                await addDoc(membersCol, {
+                    name,
+                    color,
+                    birthday: birthday || null,
+                    createdAt: serverTimestamp(),
+                    createdBy: auth.currentUser.uid
+                });
+                
+                closeAddMemberModal();
+                showToast(`Added ${name} to calendars.`, "success");
+                
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+            } catch (error) {
+                console.error("Error adding member: ", error);
+                showToast("Failed to add member.", "error");
+                const submitBtn = e.target.querySelector('button[type="submit"]');
+                submitBtn.innerHTML = '<i class="fa-solid fa-plus"></i> Add';
+                submitBtn.disabled = false;
+            }
+        });
+
+        // Edit Member Logic
+        window.openEditMemberModal = (memberId) => {
+            const member = members.find(m => m.id === memberId);
+            if (!member) return;
+            
+            document.getElementById('edit-member-original-id').value = member.id;
+            document.getElementById('edit-member-doc-id').value = member.docId || '';
+            document.getElementById('edit-member-name').value = member.id;
+            document.getElementById('edit-member-color').value = member.color;
+            document.getElementById('edit-member-birthday').value = member.birthday || '';
+            
+            document.getElementById('edit-member-modal').classList.remove('hidden');
+        };
+
+        window.closeEditMemberModal = () => {
+            document.getElementById('edit-member-modal').classList.add('hidden');
+            document.getElementById('edit-member-form').reset();
+        };
+
+        window.deleteMember = async () => {
+            const originalId = document.getElementById('edit-member-original-id').value;
+            const docId = document.getElementById('edit-member-doc-id').value;
+            
+            if (!auth.currentUser) return;
+            
+            try {
+                if (docId) {
+                    await deleteDoc(doc(db, membersPath, docId));
+                } else {
+                    // Mark default pre-loaded member as deleted in firebase so it stops showing up
+                    const membersCol = collection(db, membersPath);
+                    await addDoc(membersCol, {
+                        name: originalId,
+                        originalId: originalId,
+                        color: '#000000',
+                        deleted: true,
+                        createdAt: serverTimestamp(),
+                        createdBy: auth.currentUser.uid
+                    });
+                }
+                closeEditMemberModal();
+                showToast(`${originalId} removed.`, "success");
+            } catch(error) {
+                console.error("Delete Member Error:", error);
+                showToast("Failed to remove member.", "error");
+            }
+        };
+
+        document.getElementById('edit-member-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const originalId = document.getElementById('edit-member-original-id').value;
+            const docId = document.getElementById('edit-member-doc-id').value;
+            const newName = document.getElementById('edit-member-name').value.trim();
+            const newColor = document.getElementById('edit-member-color').value;
+            const newBirthday = document.getElementById('edit-member-birthday').value;
+
+            if (!newName || !auth.currentUser) return;
+
+            try {
+                const submitBtn = e.target.querySelector('button[type="submit"]');
+                const originalText = submitBtn.innerHTML;
+                submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+                submitBtn.disabled = true;
+
+                if (docId) {
+                    await updateDoc(doc(db, membersPath, docId), {
+                        name: newName,
+                        color: newColor,
+                        birthday: newBirthday || null
+                    });
+                } else {
+                    // Modifying a default member for the first time creates an override record
+                    const membersCol = collection(db, membersPath);
+                    await addDoc(membersCol, {
+                        name: newName,
+                        color: newColor,
+                        birthday: newBirthday || null,
+                        originalId: originalId,
+                        createdAt: serverTimestamp(),
+                        createdBy: auth.currentUser.uid
+                    });
+                }
+
+                // If name changed, update all events associated with the old name
+                if (originalId !== newName) {
+                    const eventsSnapshot = await getDocs(collection(db, eventsPath));
+                    eventsSnapshot.forEach(async (eventDoc) => {
+                        if (eventDoc.data().member === originalId) {
+                            await updateDoc(doc(db, eventsPath, eventDoc.id), {
+                                member: newName
+                            });
+                        }
+                    });
+                    
+                    // Update filters to match the new name
+                    if (activeFilters.has(originalId)) {
+                        activeFilters.delete(originalId);
+                        activeFilters.add(newName);
+                    }
+                }
+
+                closeEditMemberModal();
+                showToast("Member updated successfully.", "success");
+                
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+            } catch (error) {
+                console.error("Error updating member: ", error);
+                showToast("Failed to update member.", "error");
+                const submitBtn = e.target.querySelector('button[type="submit"]');
+                submitBtn.innerHTML = '<i class="fa-solid fa-check"></i> Save';
+                submitBtn.disabled = false;
+            }
+        });
+
+        // Form Submit Handler using native HTML5 validation
+        document.getElementById('add-event-form').addEventListener('submit', async (e) => {
+            e.preventDefault(); // Stop normal page reload
+            
+            const title = document.getElementById('event-title').value.trim();
+            const member = document.getElementById('event-member').value;
+            const startDate = document.getElementById('event-start-date').value;
+            const startTime = document.getElementById('event-start-time').value;
+            const endDate = document.getElementById('event-end-date').value;
+            const endTime = document.getElementById('event-end-time').value;
+            
+            const errorEl = document.getElementById('form-error');
+            errorEl.classList.add('hidden');
+
+            const startDateTime = new Date(`${startDate}T${startTime}`);
+            const endDateTime = new Date(`${endDate}T${endTime}`);
+
+            if (startDateTime >= endDateTime) {
+                errorEl.querySelector('span').textContent = "End time must be after the start time.";
+                errorEl.classList.remove('hidden');
+                return;
+            }
+
+            if (!auth.currentUser) {
+                showToast("Not connected to sync.", "error");
+                return;
+            }
+
+            try {
+                // Disable button to prevent double-clicks
+                const submitBtn = e.target.querySelector('button[type="submit"]');
+                const originalText = submitBtn.innerHTML;
+                submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+                submitBtn.disabled = true;
+
+                const eventsCol = collection(db, eventsPath);
+                await addDoc(eventsCol, {
+                    title,
+                    member,
+                    startDate,
+                    startTime,
+                    endDate,
+                    endTime,
+                    createdAt: serverTimestamp(),
+                    createdBy: auth.currentUser.uid
+                });
+                
+                document.getElementById('add-event-form').reset();
+                showToast("Event saved successfully.", "success");
+                switchTab('calendar');
+                
+                // Re-enable button
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+                
+            } catch (error) {
+                console.error("Save error: ", error);
+                errorEl.querySelector('span').textContent = `Database Error: ${error.message}`;
+                errorEl.classList.remove('hidden');
+                showToast("Failed to save event.", "error");
+                
+                // Re-enable button
+                const submitBtn = e.target.querySelector('button[type="submit"]');
+                submitBtn.innerHTML = '<i class="fa-regular fa-floppy-disk"></i> Save Event';
+                submitBtn.disabled = false;
+            }
+        });
+
+        // Clean up old loose global function just in case
+        if (window.submitEvent) delete window.submitEvent;
+
+        function showEventDetails(event) {
+            activeEventId = event.id;
+            const props = event.extendedProps;
+            
+            document.getElementById('details-title').textContent = event.title;
+            
+            const badge = document.getElementById('details-badge');
+            badge.textContent = props.member;
+            badge.style.color = props.color;
+            badge.style.backgroundColor = `${props.color}15`; // 15% opacity background
+            badge.style.borderColor = `${props.color}40`;
+            
+            document.getElementById('details-header-color').style.backgroundColor = props.color;
+            
+            // Formatting
+            const formatOptions = { weekday: 'long', month: 'long', day: 'numeric' };
+            const startD = new Date(`${props.startDate}T${props.startTime}`);
+            const endD = new Date(`${props.endDate}T${props.endTime}`);
+            
+            let dateText = startD.toLocaleDateString(undefined, formatOptions);
+            if (props.startDate !== props.endDate) {
+                dateText += ` - ${endD.toLocaleDateString(undefined, formatOptions)}`;
+            }
+            document.getElementById('details-date').textContent = dateText;
+            
+            const formatTime = (d) => d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+            document.getElementById('details-time').textContent = `${formatTime(startD)} to ${formatTime(endD)}`;
+            
+            // Store data for WhatsApp sharing
+            activeEventDataForShare = {
+                title: event.title,
+                member: props.member,
+                date: dateText,
+                time: `${formatTime(startD)} to ${formatTime(endD)}`
+            };
+            
+            // Hide delete button if it's a preloaded event to avoid deleting permanent schedule entries
+            const deleteBtn = document.querySelector('#event-details-modal button[onclick="deleteCurrentEvent()"]');
+            if (props.isPreloaded || event.id.startsWith('auto-bday-')) {
+                deleteBtn.classList.add('hidden');
+            } else {
+                deleteBtn.classList.remove('hidden');
+            }
+
+            document.getElementById('event-details-modal').classList.remove('hidden');
+        }
+
+        window.closeEventDetailsModal = () => {
+            document.getElementById('event-details-modal').classList.add('hidden');
+            activeEventId = null;
+            activeEventDataForShare = null;
+        };
+
+        window.shareEventToWhatsApp = () => {
+            if (!activeEventDataForShare) return;
+            const text = `🗓️ *${activeEventDataForShare.title}*\n👤 For: ${activeEventDataForShare.member}\n📅 Date: ${activeEventDataForShare.date}\n⏰ Time: ${activeEventDataForShare.time}\n\n_Shared from JH Family Calendar_`;
+            const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+            window.open(url, '_blank');
+        };
+
+        window.shareNoteToWhatsApp = (encodedText) => {
+            const decodedText = decodeURIComponent(encodedText);
+            const text = `📝 *Family Notice*: ${decodedText}\n\n_Shared from JH Family Calendar_`;
+            const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+            window.open(url, '_blank');
+        };
+
+        window.deleteCurrentEvent = async () => {
+            if (!activeEventId || !auth.currentUser) return;
+            try {
+                await deleteDoc(doc(db, eventsPath, activeEventId));
+                closeEventDetailsModal();
+                showToast("Event deleted.", "success");
+            } catch (error) {
+                console.error("Delete error: ", error);
+                showToast("Failed to delete event.", "error");
+            }
+        };
+
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            const msgEl = document.getElementById('toast-message');
+            const iconEl = document.getElementById('toast-icon');
+            
+            msgEl.textContent = message;
+            
+            if (type === 'success') {
+                toast.style.backgroundColor = '#107c10'; // Outlook green
+                iconEl.className = 'fa-regular fa-circle-check';
+            } else if (type === 'error') {
+                toast.style.backgroundColor = '#d13438'; // Outlook red
+                iconEl.className = 'fa-solid fa-circle-exclamation';
+            } else {
+                toast.style.backgroundColor = '#323130';
+                iconEl.className = 'fa-solid fa-info-circle';
+            }
+            
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+
+        function updateHomeDashboard() {
+            const today = new Date();
+            // Look ahead 60 days
+            const futureDate = new Date();
+            futureDate.setDate(today.getDate() + 60);
+            
+            const upcomingBdays = [];
+            
+            members.forEach(m => {
+                if (m.birthday) {
+                    const bdayParts = m.birthday.split('-');
+                    let nextBday = new Date(today.getFullYear(), parseInt(bdayParts[1]) - 1, parseInt(bdayParts[2]));
+                    
+                    // If birthday passed this year, look at next year
+                    if (nextBday < today && nextBday.toDateString() !== today.toDateString()) {
+                        nextBday.setFullYear(today.getFullYear() + 1);
+                    }
+                    
+                    if (nextBday >= today && nextBday <= futureDate) {
+                        // Calculate age turning
+                        const birthYear = parseInt(bdayParts[0]);
+                        const turningAge = nextBday.getFullYear() - birthYear;
+                        upcomingBdays.push({ member: m, date: nextBday, age: turningAge });
+                    }
+                }
+            });
+            
+            upcomingBdays.sort((a, b) => a.date - b.date);
+            
+            const container = document.getElementById('upcoming-birthdays');
+            if (upcomingBdays.length === 0) {
+                container.innerHTML = '<p class="text-sm text-gray-500 italic">No upcoming birthdays in the next 60 days.</p>';
+            } else {
+                container.innerHTML = upcomingBdays.map(bday => {
+                    const daysAway = Math.ceil((bday.date - today) / (1000 * 60 * 60 * 24));
+                    let timeText = daysAway === 0 ? "Today!" : daysAway === 1 ? "Tomorrow" : `In ${daysAway} days`;
+                    
+                    return `
+                        <div class="flex items-center gap-3 p-2 rounded border border-gray-100 bg-gray-50">
+                            <div class="w-2 h-full rounded-full self-stretch" style="background-color: ${bday.member.color}"></div>
+                            <div class="flex-1">
+                                <p class="text-sm font-bold text-gray-800">${bday.member.id} is turning ${bday.age}</p>
+                                <p class="text-xs text-gray-500">${bday.date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} • ${timeText}</p>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+
+        // Real-time Notes / Noticeboard Logic
+        function listenToNotes() {
+            if (!auth.currentUser) return;
+            const notesCol = collection(db, notesPath);
+            onSnapshot(notesCol, (snapshot) => {
+                const notes = [];
+                snapshot.forEach(doc => {
+                    notes.push({ id: doc.id, ...doc.data() });
+                });
+                
+                // Sort by newest first
+                notes.sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
+                
+                const list = document.getElementById('noticeboard-list');
+                if (notes.length === 0) {
+                    list.innerHTML = '<li class="text-sm text-gray-500 italic">No notes right now. Add one above!</li>';
+                } else {
+                    list.innerHTML = notes.map(note => `
+                        <li class="flex justify-between items-center bg-white border border-gray-200 shadow-sm p-3 rounded group">
+                            <span class="text-sm text-gray-800 font-medium">${note.text}</span>
+                            <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button onclick="shareNoteToWhatsApp('${encodeURIComponent(note.text)}')" class="text-gray-400 hover:text-[#25D366] bg-gray-50 hover:bg-green-50 w-8 h-8 rounded flex items-center justify-center transition-colors" title="Share to WhatsApp">
+                                    <i class="fa-brands fa-whatsapp text-lg"></i>
+                                </button>
+                                <button onclick="deleteNote('${note.id}')" class="text-gray-400 hover:text-red-600 bg-red-50 w-8 h-8 rounded flex items-center justify-center transition-colors" title="Delete Note">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                            </div>
+                        </li>
+                    `).join('');
+                }
+            });
+        }
+
+        window.addNote = async () => {
+            const input = document.getElementById('new-note-input');
+            const text = input.value.trim();
+            if (!text || !auth.currentUser) return;
+            
+            try {
+                input.value = '';
+                await addDoc(collection(db, notesPath), {
+                    text: text,
+                    createdAt: serverTimestamp(),
+                    createdBy: auth.currentUser.uid
+                });
+            } catch (error) {
+                console.error("Note Error: ", error);
+                showToast("Failed to add note.", "error");
+            }
+        };
+
+        window.deleteNote = async (noteId) => {
+            if (!auth.currentUser) return;
+            try {
+                await deleteDoc(doc(db, notesPath, noteId));
+            } catch (error) {
+                showToast("Failed to delete note.", "error");
+            }
+        };
+        
+        // Listen for Enter key on note input
+        document.getElementById('new-note-input')?.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                addNote();
+            }
+        });
+
+        // Start
+        init();
+    </script>
+</body>
+</html>
